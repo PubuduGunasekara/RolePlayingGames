@@ -1,216 +1,172 @@
-# ⚔️ RPG Battle Simulator
- 
-A Java implementation of a turn-based RPG battle system where two characters equip items and fight. Built as Lab 2 for **CS5010 – Program Design Paradigms** at Northeastern University.
- 
+<div align="center">
+
+# Role Playing Games: Battle Simulator
+
+### A turn-based RPG battle simulator in Java, where characters equip gear, items auto-combine when slots fill up, and a greedy rule decides each turn
+
+[![Java](https://img.shields.io/badge/Java-OOP_Design-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![JUnit](https://img.shields.io/badge/Tested_with-JUnit-25A162?style=flat-square&logo=junit5&logoColor=white)](https://junit.org/)
+[![Course](https://img.shields.io/badge/CS5010-Northeastern_University-C8102E?style=flat-square)](https://www.khoury.northeastern.edu/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+
+</div>
+
 ---
- 
-## 📖 Overview
- 
-Two characters enter a battle with a pool of **10 items**. They take turns picking items to equip — each item increases their attack or defense. After all items are distributed, the character who takes less damage wins.
- 
-The project demonstrates core OOP design principles:
- 
-- **Inheritance & Abstraction** — shared item logic lives in `AbstractItem`; subclasses enforce their own constraints
-- **Interface-driven design** — everything talks through the `Item` interface
-- **Template Method pattern** — `AbstractItem.combine()` delegates to `buildCombined()` in each subclass
-- **Encapsulation** — all stat constraints (e.g. HeadGear attack is always 0) are enforced inside the class, not by the caller
- 
+
+## Demo
+
+This is a console application, so there is no website to visit. The `Main` class runs a sample battle and prints the result.
+
+<!-- ADD A SAMPLE RUN HERE.
+     Take a screenshot of your terminal running the battle, save it in docs/screenshots/,
+     and uncomment the line below. A short terminal recording (asciinema or a .gif) works too. -->
+
+<!-- ![Sample battle output](docs/screenshots/battle-run.png) -->
+
 ---
- 
-## 🗂️ Project Structure
- 
-```
-lab2/
-├── src/
-│   ├── Item.java             # Interface: getName, getAttack, getDefense, combine, isStrongerThan
-│   ├── AbstractItem.java     # Abstract base: shared fields, combine logic, toString
-│   ├── HeadGear.java         # Defense only (attack always 0), max 1 slot
-│   ├── HandGear.java         # Attack only (defense always 0), max 2 slots
-│   ├── Footwear.java         # Attack + defense, max 2 slots
-│   ├── Character.java        # Holds slots, auto-combines when full, tracks total stats
-│   ├── Battle.java           # Drives the battle: turn logic, item selection rules, winner
-│   └── Main.java             # Entry point — runs a sample battle
-│
-└── test/
-    ├── ItemTest.java         # Tests for all item types, combine, isStrongerThan, exceptions
-    ├── CharacterTest.java    # Tests for slot management, auto-combining, total stats
-    └── BattleTest.java       # Tests for all 4 selection rules, winner logic, full run
-```
- 
+
+## What is this, in plain English?
+
+Two characters face off. Each one has base attack and defense, plus slots for gear: one head item, two hand items, and two foot items. They take turns picking from a shared pool of items and equipping them to get stronger. When the items run out, whoever would take less damage wins.
+
+Two rules make it interesting:
+
+- **Items auto-combine.** If a slot is already full and you add another item of that type, the new item is not rejected. It merges with what is already there into a single, stronger item.
+- **Each turn is a greedy choice.** A character does not pick at random. It follows a priority rule: first fill an empty slot type, then take the highest attack, break ties on defense, and only pick randomly if everything is equal.
+
 ---
- 
-## 🧱 Class Hierarchy
- 
-```
-<<interface>>
-    Item
-     │
-     │  + getName() : String
-     │  + getAttack() : int
-     │  + getDefense() : int
-     │  + combine(other: Item) : Item
-     │  + isStrongerThan(other: Item) : boolean  ← default method
-     │
-<<abstract>>
-  AbstractItem
-     │  - adjective, noun : String (final)
-     │  - attack, defense : int (final)
-     │  # buildCombined(name, atk, def) : Item  ← abstract
-     │
-     ├── HeadGear    [attack = 0 always]
-     ├── HandGear    [defense = 0 always]
-     └── Footwear    [attack + defense both allowed]
- 
-Character
-  - head    : HeadGear    (0..1)
-  - hands   : HandGear[]  (0..2)
-  - feet    : Footwear[]  (0..2)
- 
-Battle
-  - player1, player2 : Character
-  - itemPool         : List<Item>
-```
- 
+
+## Why it's interesting
+
+This was built for CS5010 (Programming Design Paradigm) at Northeastern, so the goal was clean object-oriented design. The parts worth a look:
+
+- **Template Method pattern.** `AbstractItem` holds the shared `combine()` logic but delegates the final step to an abstract `buildCombined()` that each subclass implements, so every item type returns its own concrete type without duplicating the combine code.
+- **Immutability.** The gear classes are `final` and their fields never change. `combine()` returns a brand new item and leaves both originals untouched, which makes the code easier to reason about.
+- **Interface default method.** The "is this item stronger" comparison is identical for every type, so it lives as a default method on the `Item` interface instead of being copied into each class.
+- **Polymorphism over conditionals.** A character routes an incoming item to the right slot by its actual type and handles a full slot by combining, rather than with sprawling if-else logic.
+- **Designed to be testable.** `Battle` takes its random source through the constructor, so a test can pass in a seeded `Random` and get the exact same battle every time. No flaky tests.
+
 ---
- 
-## ⚙️ Rules
- 
-### Item Slots per Character
- 
-| Slot | Type | Max |
-|---|---|---|
-| Head | HeadGear | 1 |
-| Hands | HandGear | 2 |
-| Feet | Footwear | 2 |
- 
-When a slot is **full**, the incoming item is **automatically combined** with an existing item of that type rather than being rejected.
- 
-### Combining Items
- 
-The stronger item keeps its full name. The weaker item's adjective is prepended. Stats are summed.
- 
-**Strength comparison:** attack first → defense as tiebreaker → random if still tied.
- 
+
+## Design at a glance
+
+```mermaid
+classDiagram
+    class Item {
+        <<interface>>
+        +getName() String
+        +getAttack() int
+        +getDefense() int
+        +combine(Item) Item
+        +isStrongerThan(Item) boolean
+    }
+    class AbstractItem {
+        <<abstract>>
+        -adjective String
+        -noun String
+        -attack int
+        -defense int
+        +combine(Item) Item
+        #buildCombined(name, atk, def) Item
+    }
+    class HeadGear {
+        attack is always 0
+    }
+    class HandGear {
+        defense is always 0
+    }
+    class Footwear {
+        has attack and defense
+    }
+    class Character {
+        +addItem(Item) void
+        +getTotalAttack() int
+        +getTotalDefense() int
+    }
+    class Battle {
+        +start() void
+    }
+
+    Item <|.. AbstractItem
+    AbstractItem <|-- HeadGear
+    AbstractItem <|-- HandGear
+    AbstractItem <|-- Footwear
+    Character o-- Item : equips into slots
+    Battle o-- Character : two players
+    Battle o-- Item : shared item pool
 ```
-Scurrying Sandals  (ATK: 0, DEF: 1)
-+
-Happy HoverBoard   (ATK: 1, DEF: 3)
-=
-Scurrying Happy HoverBoard  (ATK: 1, DEF: 4)
-```
- 
-### Battle Item Selection (4 rules, applied in order)
- 
-1. **Prefer items whose type has an open slot** on the character
-2. Among candidates, pick the **highest attack**
-3. On attack tie, pick the **highest defense**
-4. On full tie, pick **randomly**
- 
-### Winner Calculation
- 
-```
-damage_to_player1 = player2.totalAttack  - player1.totalDefense
-damage_to_player2 = player1.totalAttack  - player2.totalDefense
- 
-→ Lower damage = winner. Equal damage = tie.
-```
- 
+
 ---
- 
-## 🚀 How to Run
- 
-### Prerequisites
- 
-- Java 11 or higher
-- JUnit 4 (for tests)
- 
-### Compile & Run
- 
-```bash
-cd src/
-javac *.java
-java Main
-```
- 
-### Run Tests (with JUnit 4 jar on classpath)
- 
-```bash
-cd test/
-javac -cp .:../src:junit-4.13.jar *.java
-java -cp .:../src:junit-4.13.jar org.junit.runner.JUnitCore ItemTest CharacterTest BattleTest
-```
- 
-### Sample Output
- 
-```
-╔══════════════════════════════════════╗
-║        ⚔  RPG BATTLE BEGINS  ⚔       ║
-╠══════════════════════════════════════╣
-║  Player 1 (Warrior)  ATK:  8  DEF:  5 ║
-║  Player 2 (Rogue)    ATK:  6  DEF:  7 ║
-╚══════════════════════════════════════╝
- 
---- Turn 1: Player 1 picks Flaming Sword ---
-Player 1:
-  Total ATK: 16 | Total DEF: 5
-  Hand 1: Flaming Sword (ATK: 8, DEF: 0)
-Player 2:
-  Total ATK: 6  | Total DEF: 7
- 
-...
- 
-=== Battle Result ===
-Player 1 damage taken: -3
-Player 2 damage taken: 11
-Player 1 wins!
-```
- 
----
- 
-## 🧪 Test Coverage
- 
-| Test File | What it covers |
+
+## Tech Stack
+
+| Area | Choice |
 |---|---|
-| `ItemTest.java` | Creation, stat constraints, combine (stronger/weaker/tie), `isStrongerThan`, `toString`, all 7 `IllegalArgumentException` cases |
-| `CharacterTest.java` | Slot availability methods, adding items, auto-combine when full, total ATK/DEF math, unknown item type exception |
-| `BattleTest.java` | Constructor validation, each of the 4 selection rules individually, all 3 winner outcomes (P1 wins / P2 wins / tie), full `start()` run |
- 
-All tests use **JUnit 4** (`@Test`, `@Before`, `@Test(expected = ...)`).
- 
+| Language | Java |
+| Testing | JUnit |
+| Patterns and concepts | Template Method, interface default methods, immutability, polymorphism, greedy selection, dependency injection for testability |
+
 ---
- 
-## 🔑 Key Design Decisions
- 
-**No factory class.** Items are created directly via their constructors (`new HeadGear(...)`, etc.). A separate factory added indirection without value since there is no need to swap implementations.
- 
-**`buildCombined()` is abstract.** `AbstractItem` handles all the combining logic — figuring out stronger vs weaker, forming the combined name, summing stats. It then delegates to `buildCombined()` so each subclass returns the correct concrete type and enforces its own constraints (e.g. `HeadGear` always passes `0` as attack regardless of what was summed).
- 
-**`Character` exposes slot-availability methods.** `hasAvailableHeadSlot()`, `hasAvailableHandSlot()`, `hasAvailableFootSlot()` are public so `Battle` can apply Rule 1 without accessing private internals.
- 
-**`Battle` accepts a `Random` in a package-private constructor.** This lets `BattleTest` seed the RNG for deterministic tests of the random tie-breaking branch (Rule 4).
- 
+
+## Getting Started
+
+### Prerequisites
+- A Java Development Kit (JDK 17 or newer)
+
+### Compile and run
+```bash
+javac -d out src/*.java
+java -cp out Main
+```
+
+### Run the tests
+The tests under `test/` use JUnit. The easiest way to run them is to open the project in IntelliJ IDEA and run the test classes, or add JUnit to your classpath and run them from the command line.
+
 ---
- 
-## 📝 Design Changes from Original Plan
- 
-| Original | Changed to | Reason |
-|---|---|---|
-| `ItemFactory` interface + `RPGItemFactory` singleton | Removed entirely | Items are simple value objects — a factory added boilerplate with no benefit |
-| No `Battle` class | Added `Battle.java` | TA feedback: game logic should be encapsulated in its own class, not scattered in `Main` |
-| `Character` had no slot-query methods | Added `hasAvailable*Slot()` methods | Required by `Battle.selectItem()` to implement Rule 1 cleanly |
- 
+
+## Project Structure
+
+```
+.
+├── src/
+│   ├── Item.java          # The item contract (interface)
+│   ├── AbstractItem.java  # Shared combine logic + abstract buildCombined()
+│   ├── HeadGear.java      # Head slot item (defense only)
+│   ├── HandGear.java      # Hand slot item (attack only)
+│   ├── Footwear.java      # Foot slot item (attack and defense)
+│   ├── Character.java     # Equips items into slots, combines when full
+│   ├── Battle.java        # Runs the turn-based battle and picks a winner
+│   └── Main.java          # Sample battle entry point
+└── test/
+    ├── CharacterTest.java
+    └── ItemTest.java
+```
+
 ---
- 
-## 📚 Citations
- 
-- Assignment specification: CS5010 Lab 2, Northeastern University
-- Christofides, N. (1976). *Worst-case analysis of a new heuristic for the travelling salesman problem* — basis for the MST-DFS TSP approximation algorithm implemented in `Battle`
-- Effective Java (Bloch, 3rd ed.) — Item 17 (minimize mutability), Item 20 (prefer interfaces)
- 
+
+## What I Learned
+
+This project was about getting object-oriented design right: pulling shared behavior into a base class while letting subclasses fill in the specifics, keeping objects immutable, letting types do the branching instead of long if-else chains, and structuring the code so that even the random parts are testable. Small program, but the design habits carry straight over to larger systems.
+
 ---
- 
-## 👤 Author
- 
-**Pubudu Praneeth Gunasekara**  
-MS Computer Science — Northeastern University  
-CS5010 – Program Design Paradigms, Spring 2026
+
+## Author
+
+**Pubudu Gunasekara**
+M.S. Computer Science, Northeastern University (Silicon Valley)
+Backend and distributed systems. Open to a software engineering co-op (Jan to Aug 2027).
+
+[![Portfolio](https://img.shields.io/badge/Portfolio-Visit-0A0A0A?style=flat-square&logo=googlechrome&logoColor=white)](https://pubudugunasekara.github.io/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/pubudugunasekera/)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/PubuduGunasekara)
+
+---
+
+<div align="center">
+
+**Thanks for checking out this project.**
+If you found it useful or interesting, consider leaving a star, and feel free to reach out about backend, distributed systems, or co-op opportunities.
+
+Built by Pubudu Gunasekara · MIT License
+
+</div>
